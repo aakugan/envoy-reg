@@ -5,7 +5,7 @@
         "github:grpc-ecosystem/proto-converter"
     ],
     "versions": [
-        "0.0.0-20240625-1db7653.envoy"
+        "0.0.0-20260912-3850764.envoy"
     ],
     "yanked_versions": {}
 }

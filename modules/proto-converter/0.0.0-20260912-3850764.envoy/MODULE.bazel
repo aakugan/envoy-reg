@@ -1,6 +1,6 @@
 module(
     name = "proto-converter",
-    version = "0.0.0-20240625-1db7653.envoy",
+    version = "0.0.0-20260912-3850764.envoy",
     compatibility_level = 1,
 )
 
