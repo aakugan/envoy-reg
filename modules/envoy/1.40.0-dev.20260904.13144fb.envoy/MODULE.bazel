@@ -28,6 +28,7 @@ bazel_dep(name = "cel-cpp", version = "0.14.0.envoy")
 bazel_dep(name = "cel-spec", version = "0.25.2", repo_name = "dev_cel")
 bazel_dep(name = "colm", version = "0.14.7-211228-2d8ba76.envoy")
 bazel_dep(name = "cpp2sky", version = "0.6.0.envoy")
+bazel_dep(name = "databricks-build", version = "1.0.0.envoy")
 bazel_dep(name = "dd-trace-cpp", version = "2.1.1.envoy")
 bazel_dep(name = "emsdk", version = "4.0.23.envoy")
 bazel_dep(name = "envoy_api", version = "1.40.0-dev.20260904.13144fb.envoy")
@@ -361,11 +362,13 @@ crate.annotation(
 )
 crate.from_cargo(
     name = "envoy_rust_crate_index",
+    cargo_config = "@databricks-build//:config.toml",
     cargo_lockfile = "//:Cargo.lock",
     manifests = ["//:Cargo.toml"],
 )
 crate.from_cargo(
     name = "dynamic_modules_rust_sdk_crate_index",
+    cargo_config = "@databricks-build//:config.toml",
     cargo_lockfile = "//:Cargo.lock",
     manifests = ["//:Cargo.toml"],
 )

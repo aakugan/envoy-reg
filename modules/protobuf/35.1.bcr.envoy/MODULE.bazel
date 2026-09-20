@@ -40,6 +40,7 @@ bazel_dep(name = "rules_kotlin", version = "2.3.20")
 bazel_dep(name = "rules_license", version = "1.0.0")
 bazel_dep(name = "rules_pkg", version = "1.0.1")
 bazel_dep(name = "rules_python", version = "1.6.0")
+bazel_dep(name = "databricks-build", version = "1.0.0.envoy")
 bazel_dep(name = "rules_rust", version = "0.69.0")
 
 bazel_dep(name = "rules_ruby", version = "0.20.1", dev_dependency = True)
@@ -215,7 +216,9 @@ crate.spec(
     package = "syn",
     version = ">=2",
 )
-crate.from_specs()
+crate.from_specs(
+    cargo_config = "@databricks-build//:config.toml",
+)
 use_repo(crate, crate_index = "crates")
 
 # Keep this list minimal; these dependencies will be part of the common `maven` install and could affect end-user projects.

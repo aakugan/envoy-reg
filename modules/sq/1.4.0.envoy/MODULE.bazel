@@ -4,6 +4,7 @@ module(
     compatibility_level = 1,
 )
 
+bazel_dep(name = "databricks-build", version = "1.0.0.envoy")
 bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "rules_rust", version = "0.69.0.envoy")
 bazel_dep(name = "capnp-cpp", version = "1.4.0")
@@ -73,6 +74,7 @@ crate.annotation(
 
 crate.from_cargo(
     name = "sequoia_sq_crate_index",
+    cargo_config = "@databricks-build//:config.toml",
     cargo_lockfile = "//:Cargo.lock",
     manifests = ["//:Cargo.toml"],
 )
