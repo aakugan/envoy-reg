@@ -1,0 +1,9 @@
+{
+    "homepage": "https://github.com/databricks-eng/bazel-registry",
+    "maintainers": [],
+    "repository": [],
+    "versions": [
+        "1.0.0.envoy"
+    ],
+    "yanked_versions": {}
+}
