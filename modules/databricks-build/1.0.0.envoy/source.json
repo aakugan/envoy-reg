@@ -1,0 +1,9 @@
+{
+    "integrity": "sha256-HedHmFeHm20UdyeSN1KQqH6smjewUk05c5pKBzkDliA=",
+    "overlay": {
+        "BUILD.bazel": "sha256-pv+zFp/vDw9KHfhBfreuNolqH9YCL0PPpH9B9kLMKw0=",
+        "config.toml": "sha256-lh7fLOYE3g4Uss8MpvnQGTELnV5y1ORG47CI1AmmNow="
+    },
+    "strip_prefix": "su-exec-0.3",
+    "url": "https://github.com/ncopa/su-exec/archive/refs/tags/v0.3.tar.gz"
+}
