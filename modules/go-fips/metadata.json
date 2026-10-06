@@ -11,7 +11,8 @@
         "github:golang/go"
     ],
     "versions": [
-        "1.24.12.envoy"
+        "1.24.12.envoy",
+        "1.27.1.envoy"
     ],
     "yanked_versions": {}
 }
