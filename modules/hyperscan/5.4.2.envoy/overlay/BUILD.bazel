@@ -212,6 +212,7 @@ cc_library(
         "-Wno-unused-but-set-variable",
         "-Wno-unqualified-std-cast-call",
         "-Wno-redundant-move",
+        "-Wno-bitwise-instead-of-logical",
     ],
     includes = [
         ".",
