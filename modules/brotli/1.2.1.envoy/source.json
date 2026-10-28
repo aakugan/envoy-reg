@@ -1,0 +1,5 @@
+{
+    "url": "https://github.com/google/brotli/archive/refs/tags/v1.2.1.tar.gz",
+    "integrity": "sha256-mNNdEaeNxFOuu30Qw3SPP3P/eMgmfA3Gl7hjH2e/fo8=",
+    "strip_prefix": "brotli-1.2.1"
+}
