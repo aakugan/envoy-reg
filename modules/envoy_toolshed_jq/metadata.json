@@ -22,7 +22,8 @@
         "0.5.5.envoy",
         "0.5.6.envoy",
         "0.5.7.envoy",
-        "0.5.8.envoy"
+        "0.5.8.envoy",
+        "0.5.9.envoy"
     ],
     "yanked_versions": {}
 }
