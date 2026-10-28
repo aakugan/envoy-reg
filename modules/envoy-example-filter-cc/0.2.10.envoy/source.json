@@ -1,0 +1,5 @@
+{
+    "url": "https://github.com/envoyproxy/examples/archive/v0.2.10.tar.gz",
+    "integrity": "sha256-mNhNbgRQdq6z1UD7SnbdpUBwOxyPdXIGBLHrmlvE+1o=",
+    "strip_prefix": "examples-0.2.10/filter-cc"
+}
