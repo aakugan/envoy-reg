@@ -1,0 +1,139 @@
+name: Register module
+
+permissions:
+  contents: read
+
+on:
+  repository_dispatch:
+    types: [register-module]
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: Upstream repository (envoyproxy/examples)
+        type: string
+        required: true
+      ref:
+        description: Upstream release tag or commit SHA
+        type: string
+        required: true
+      dry-run:
+        description: Validate without writing entries or opening a PR
+        type: boolean
+        default: false
+
+# One run at a time per upstream repo: refs can register the same modules (so
+# the same branch), and the existing-branch check is only safe serialized.
+# GitHub keeps one pending run per group, so a burst of dispatches can drop a
+# middle one; dispatching again is harmless.
+concurrency:
+  group: register-${{ github.event.client_payload.repository || inputs.repository }}
+  cancel-in-progress: false
+
+jobs:
+  register:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+    - name: Validate request before authentication or checkout
+      id: request
+      env:
+        REQUEST: ${{ toJSON(github.event.client_payload || inputs) }}
+      run: |
+        python3 - <<'PY'
+        import json
+        import os
+        import re
+
+        request = json.loads(os.environ["REQUEST"])
+        repository = request.get("repository")
+        if not isinstance(repository, str) or not re.fullmatch(r"envoyproxy/[A-Za-z0-9_.-]+", repository):
+            raise SystemExit("Invalid repository: must match envoyproxy/[A-Za-z0-9_.-]+")
+        ref = request.get("ref")
+        # The pinned PR action interpolates its body into shell source.
+        if not isinstance(ref, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/+-]*", ref):
+            raise SystemExit("Invalid ref: use only letters, digits, dot, underscore, slash, plus or hyphen")
+        dry_run = request.get("dry-run", False)
+        if not isinstance(dry_run, bool):
+            raise SystemExit("dry-run must be a boolean")
+        sha = request.get("sha", "")
+        if not isinstance(sha, str) or (sha and not re.fullmatch(r"[0-9a-fA-F]{40}", sha)):
+            raise SystemExit("sha must be 40 hexadecimal characters")
+        with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+            for key in ("repository", "ref"):
+                output.write(f"{key}={request[key]}\n")
+            output.write(f"sha={sha}\n")
+            output.write(f"dry-run={str(dry_run).lower()}\n")
+        PY
+    - name: Appauth
+      id: appauth
+      if: steps.request.outputs.dry-run != 'true'
+      uses: envoyproxy/toolshed/actions/appauth@9bd3b300cf19f67cd2ef8b6e4aaa920f79894c24  # actions-v0.4.29
+      with:
+        app_id: ${{ secrets.ENVOY_CI_PUBLISH_APP_ID }}
+        key: ${{ secrets.ENVOY_CI_PUBLISH_APP_KEY }}
+    - name: Checkout the registry
+      uses: envoyproxy/toolshed/actions/github/checkout@9bd3b300cf19f67cd2ef8b6e4aaa920f79894c24  # actions-v0.4.29
+      with:
+        branch: main
+        committer-name: publish-envoy[bot]
+        committer-email: 140627008+publish-envoy[bot]@users.noreply.github.com
+        token: ${{ steps.appauth.outputs.token || github.token }}
+    - name: Register modules
+      id: register
+      env:
+        REPOSITORY: ${{ steps.request.outputs.repository }}
+        REF: ${{ steps.request.outputs.ref }}
+        SHA: ${{ steps.request.outputs.sha }}
+        DRY_RUN: ${{ steps.request.outputs.dry-run }}
+        GH_TOKEN: ${{ steps.appauth.outputs.token || github.token }}
+      run: |
+        args=()
+        if [[ "$DRY_RUN" == true ]]; then
+            args+=(--dry-run)
+        fi
+        python3 .github/workflows/register_module.py \
+            --repository="$REPOSITORY" \
+            --ref="$REF" \
+            --sha="$SHA" \
+            "${args[@]}"
+    # A registration branch left from an earlier run (its PR still open, or
+    # unmerged) means this request is a repeat: leave it to that branch rather
+    # than fail pushing the same branch again.
+    - name: Check for an existing registration branch
+      id: existing
+      if: steps.register.outputs.registered == 'true'
+      env:
+        BRANCH: ${{ steps.register.outputs.branch }}
+      run: |
+        if git ls-remote --exit-code --heads origin "refs/heads/${BRANCH}" > /dev/null; then
+            echo "::notice::Registration branch ${BRANCH} already exists; skipping"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+        else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+        fi
+    # Each module root registers only when its version at the ref is a new
+    # release, so a ref can register some, all or none of them.
+    - name: Stage generated entries
+      if: >-
+        steps.request.outputs.dry-run != 'true'
+        && steps.register.outputs.registered == 'true'
+        && steps.existing.outputs.exists != 'true'
+      run: git add -- modules
+    - name: Create Pull Request
+      if: >-
+        steps.register.outputs.registered == 'true'
+        && steps.existing.outputs.exists != 'true'
+      uses: envoyproxy/toolshed/actions/github/pr@9bd3b300cf19f67cd2ef8b6e4aaa920f79894c24  # actions-v0.4.29
+      with:
+        base: main
+        branch: ${{ steps.register.outputs.branch }}
+        title: ${{ steps.register.outputs.title }}
+        body: |
+          Created by publish-envoy[bot] from ${{ steps.request.outputs.repository }}@${{ steps.request.outputs.ref }}
+
+          ${{ steps.register.outputs.summary }}
+        commit: ${{ steps.request.outputs.dry-run != 'true' }}
+        dry-run: ${{ steps.request.outputs.dry-run }}
+        GITHUB_TOKEN: ${{ steps.appauth.outputs.token || github.token }}

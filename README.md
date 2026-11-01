@@ -34,3 +34,81 @@ Between publishes, each module may carry at most one unpublished version. If mul
 ## Immutability
 
 Published module versions (those present in the latest GitHub release) cannot be modified or removed. Fixes must be published as a new version. Yank a version by adding it to `yanked_versions`; never un-yank it by deleting the entry.
+
+## Automated registration
+
+The **Register module** workflow accepts `workflow_dispatch` or a
+`repository_dispatch` with event type `register-module` and `client_payload`:
+
+```json
+{"repository": "envoyproxy/toolshed", "ref": "bazel-v0.5.15", "dry-run": false}
+```
+
+Only `envoyproxy/*` repositories are accepted. Refs may contain only letters,
+digits, `.`, `_`, `/`, `+`, and `-`, starting with a letter or digit.
+Optional `sha` (40 hex characters) verifies the ref's commit and pins upstream
+file reads. Producer release workflows send the dispatch after publishing.
+Non-dry runs use the `ENVOY_CI_PUBLISH_APP_ID` and `ENVOY_CI_PUBLISH_APP_KEY`
+secrets to open a PR as `publish-envoy[bot]`.
+
+Source repositories provide templates in `.envoy-registry/`, or in `.bcr/` when
+that has no `.envoy-registry/config.yml` (so a repo can keep `.bcr/` for BCR
+itself). `config.yml` there lists `moduleRoots` (defaults to `["."]` when
+absent), and each root has a `MODULE.bazel` with a literal module name and
+version. Each root needs `<templates>/<root>/source.template.json`, plus
+`metadata.template.json` for modules not yet in this registry; `presubmit.yml`
+is copied when present. For root `.`, these files live directly in the template
+directory.
+
+Each root is registered independently, from its own version at the ref:
+
+- a root whose version is not a plain `X.Y.Z` release (eg `0.5.16-dev`) is skipped;
+- a root whose `<version>.envoy` is already registered is skipped;
+- every other root is registered as `<version>.envoy`.
+
+So a monorepo can release its modules separately and dispatch every release:
+each run registers only what that release published. A run with nothing new
+succeeds without opening a PR. A repeat while an earlier run's registration branch still exists
+is skipped too, leaving that branch and its PR as they are. Branches are named after every module and version a run registers, so
+distinct registrations never share one. Runs for the same upstream repository are
+serialized. Templates may not patch or overlay `MODULE.bazel`: the registry's
+module file is generated and verified from the ref.
+
+Source templates contain `url`, `integrity` and `strip_prefix`, with `{OWNER}`,
+`{REPO}`, `{VERSION}` (the module's own version) and `{TAG}` placeholders; `TAG`
+is the ref with one leading `v` removed. `strip_prefix` is used as given, so it
+includes any subdirectory, or is empty for an archive with files at its root.
+URLs may only use letters, digits and `. _ ~ % / + -` after the host, and
+`strip_prefix` letters, digits and `. _ + / -`, since registry CI uses both in
+shell. Modules may share a release archive or use their own;
+each archive is downloaded and hashed once, and the `MODULE.bazel` inside it
+must match the one at the ref.
+
+Upstream `<templates>/<root>/patches/` and `overlay/` trees are copied and hashed
+recursively; patches use `patch_strip: 1`. If the last metadata-listed registry
+version has any patch/overlay filenames missing upstream, registration fails:
+those fixes must first be upstreamed to the source repo's templates.
+
+New releases always use `<version>.envoy`; `.envoy.N` is reserved for manual
+post-release registry-side fixes. The generator rewrites the module version and
+pins to the releases of modules from the same ref (registered now or before;
+pins to other versions are left as they are),
+removes top-level local/git/archive overrides and comment-only override blocks,
+and otherwise preserves `MODULE.bazel`. Nonliteral names/versions or
+unsupported constructs fail rather than guess. Non-dev dependencies are
+verified: `.envoy`/`.envoy.N` versions must exist locally (including this run's
+entries), and other versions must exist in BCR. Dev dependencies are not, as
+consumers never resolve them. Missing files, archive mismatches, lost patches,
+or failed dependency checks abort before writing entries or opening a PR.
+
+For local validation without modifying the registry:
+
+```sh
+python3 .github/workflows/register_module.py \
+    --repository envoyproxy/toolshed --ref bazel-v0.5.15 --dry-run
+```
+
+`--modules-root` selects a registry directory containing `modules/` (default `.`).
+Dry-runs perform the same checks, including duplicate detection, but write no
+registry files. Successful runs print a summary and expose modules, PR title,
+branch, and summary through `GITHUB_OUTPUT` when set.
