@@ -1,0 +1,9 @@
+{
+    "url": "https://github.com/openssl/openssl/releases/download/openssl-4.1.0/openssl-4.1.0.tar.gz",
+    "integrity": "sha256-UMF7r1TLAI9s5C1Q3rSygFChqtcRY2yr1LJBx+kMwv0=",
+    "strip_prefix": "openssl-4.1.0",
+    "overlay": {
+        "BUILD.bazel": "sha256-4ThkWCXRYqJJsemx4H+mBQ6nLvgVlKLRU9Fgv49tPe0="
+    },
+    "patch_strip": 1
+}
