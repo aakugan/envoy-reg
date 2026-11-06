@@ -16,6 +16,7 @@ tasks:
     - '@quiche//:quiche_common_platform_logging'
     - '@quiche//:quiche_common_platform_bug_tracker'
     - '@quiche//:quiche_common_platform_export'
+    - '@quiche//:quiche_common_platform_code_count_reader'
     - '@quiche//:quiche_common_ip_address_family'
     - '@quiche//:quiche_crypto_logging'
     - '@quiche//:http2_adapter_nghttp2_include'
