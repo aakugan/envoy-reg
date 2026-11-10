@@ -1,0 +1,23 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+load("//:headers.bzl", "BOOST_ARCHIVE", "extract_headers")
+
+# The headers are a tree artifact extracted from the release archive in a
+# build action rather than source files of this repository; see headers.bzl.
+extract_headers(
+    name = "boost",
+    archive = "@boost_headers_archive//:" + BOOST_ARCHIVE.filename,
+    strip_prefix = BOOST_ARCHIVE.strip_prefix,
+)
+
+filegroup(
+    name = "files",
+    srcs = [":boost"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "boost.headers",
+    hdrs = [":boost"],
+    includes = ["."],
+    visibility = ["//visibility:public"],
+)
