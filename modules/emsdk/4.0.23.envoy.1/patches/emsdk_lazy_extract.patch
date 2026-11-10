@@ -1,0 +1,385 @@
+diff --git a/MODULE.bazel b/MODULE.bazel
+index 4149ef6..c4a9520 100644
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -9,6 +9,7 @@ bazel_dep(name = "aspect_rules_js", version = "1.42.0")
+ bazel_dep(name = "rules_nodejs", version = "6.3.2")
+ bazel_dep(name = "rules_cc", version = "0.1.1")
+ bazel_dep(name = "rules_python", version = "1.3.0")
++bazel_dep(name = "tar.bzl", version = "0.5.1")
+ 
+ python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+ python.toolchain(
+diff --git a/emscripten_build_file.bzl b/emscripten_build_file.bzl
+index eefbe79..2208a3e 100644
+--- a/emscripten_build_file.bzl
++++ b/emscripten_build_file.bzl
+@@ -1,101 +1,114 @@
+ """A templated build file for emscripten repositories"""
+ 
++# The tools the toolchain uses, i.e. the files the filegroups below used to
++# list individually from an extracted http_archive, plus the targets of the
++# symlinks among them (clang -> clang-NN, wasm-ld -> lld). Everything else
++# under bin/ is left out of the extracted tree.
++EMSCRIPTEN_BIN_TOOLS = [
++    "clang",
++    "clang++",
++    "clang-[0-9]*",
++    "lld",
++    "llvm-ar",
++    "llvm-dwarfdump",
++    "llvm-dwp",
++    "llvm-nm",
++    "llvm-objcopy",
++    "wasm-ctor-eval",
++    "wasm-emscripten-finalize",
++    "wasm-ld",
++    "wasm-metadce",
++    "wasm-opt",
++    "wasm-split",
++    "wasm2js",
++]
++
+ EMSCRIPTEN_BUILD_FILE_CONTENT_TEMPLATE = """
++load("@emsdk//:emscripten_extract.bzl", "emscripten_extract")
++
+ package(default_visibility = ['//visibility:public'])
+ 
++emscripten_extract(
++    name = "extract",
++    archive = "{archive}",
++    bin_tools = {bin_tools},
++    strip_prefix = "{strip_prefix}",
++)
++
++filegroup(
++    name = "bin",
++    srcs = [":extract"],
++    output_group = "bin",
++)
++
++filegroup(
++    name = "emscripten",
++    srcs = [":extract"],
++    output_group = "emscripten",
++)
++
++filegroup(
++    name = "lib",
++    srcs = [":extract"],
++    output_group = "lib",
++)
++
+ filegroup(
+     name = "all",
+-    srcs = glob(["**"]),
++    srcs = [
++        ":bin",
++        ":emscripten",
++        ":lib",
++    ],
+ )
+ 
+ filegroup(
+     name = "includes",
+-    srcs = glob([
+-        "emscripten/cache/sysroot/include/c++/v1/**",
+-        "emscripten/cache/sysroot/include/compat/**",
+-        "emscripten/cache/sysroot/include/**",
+-        "lib/clang/**/include/**",
+-    ]),
++    srcs = [
++        ":emscripten",
++        ":lib",
++    ],
+ )
+ 
+ filegroup(
+     name = "emcc_common",
+-    srcs = [
+-        "emscripten/emcc.py",
+-        "emscripten/embuilder.py",
+-        "emscripten/emscripten-version.txt",
+-        "emscripten/cache/sysroot_install.stamp",
+-        "emscripten/src/settings.js",
+-        "emscripten/src/settings_internal.js",
+-    ] + glob(
+-        include = [
+-            "emscripten/third_party/**",
+-            "emscripten/tools/**",
+-        ],
+-        exclude = [
+-            "**/__pycache__/**",
+-        ],
+-    ),
++    srcs = [":emscripten"],
+ )
+ 
+ filegroup(
+     name = "compiler_files",
+     srcs = [
+-        "bin/clang{bin_extension}",
+-        "bin/clang++{bin_extension}",
+-        ":emcc_common",
+-        ":includes",
++        ":bin",
++        ":emscripten",
++        ":lib",
+     ],
+ )
+ 
+ filegroup(
+     name = "linker_files",
+     srcs = [
+-        "bin/clang{bin_extension}",
+-        "bin/llvm-ar{bin_extension}",
+-        "bin/llvm-dwarfdump{bin_extension}",
+-        "bin/llvm-nm{bin_extension}",
+-        "bin/llvm-objcopy{bin_extension}",
+-        "bin/wasm-ctor-eval{bin_extension}",
+-        "bin/wasm-emscripten-finalize{bin_extension}",
+-        "bin/wasm-ld{bin_extension}",
+-        "bin/wasm-metadce{bin_extension}",
+-        "bin/wasm-opt{bin_extension}",
+-        "bin/wasm-split{bin_extension}",
+-        "bin/wasm2js{bin_extension}",
+-        ":emcc_common",
+-    ] + glob(
+-        include = [
+-            "emscripten/cache/sysroot/lib/**",
+-            "emscripten/node_modules/**",
+-            "emscripten/src/**",
+-        ],
+-    ),
++        ":bin",
++        ":emscripten",
++    ],
+ )
+ 
+ filegroup(
+     name = "ar_files",
+     srcs = [
+-        "bin/llvm-ar{bin_extension}",
+-        "emscripten/emar.py",
+-        "emscripten/emscripten-version.txt",
+-        "emscripten/src/settings.js",
+-        "emscripten/src/settings_internal.js",
+-    ] + glob(
+-        include = [
+-            "emscripten/tools/**",
+-        ],
+-        exclude = [
+-            "**/__pycache__/**",
+-        ],
+-    ),
++        ":bin",
++        ":emscripten",
++    ],
+ )
+ 
+ filegroup(
+     name = "dwp_files",
+-    srcs = [
+-        "bin/llvm-dwp{bin_extension}",
+-    ],
++    srcs = [":bin"],
+ )
+-
+ """
++
++def emscripten_build_file_content(archive, bin_extension, strip_prefix):
++    return EMSCRIPTEN_BUILD_FILE_CONTENT_TEMPLATE.format(
++        archive = archive,
++        bin_tools = repr([tool + bin_extension for tool in EMSCRIPTEN_BIN_TOOLS]),
++        strip_prefix = strip_prefix,
++    )
+diff --git a/emscripten_extract.bzl b/emscripten_extract.bzl
+new file mode 100644
+index 0000000..bff1342
+--- /dev/null
++++ b/emscripten_extract.bzl
+@@ -0,0 +1,85 @@
++"""Extract a downloaded Emscripten release archive in a build action.
++
++The release archives are large (~340MB compressed, ~1.5GB extracted) and
++extracting them in the repository rule costs every fresh output base minutes of
++single-threaded CPU before analysis can even start. Extracting in an action
++instead makes the result a cacheable tree artifact: with remote execution the
++archive is uploaded once and the extracted tree only ever lives on the workers.
++
++Extraction uses the hermetic bsdtar from the tar.bzl toolchain (handles tar.xz
++and zip), so nothing is required of the execution platform. The extracted tree
++is pruned to what the toolchain actually uses, the same set as the filegroups
++the http_archive build file used to declare; symlinks (clang -> clang-NN,
++wasm-ld -> lld, node_modules/.bin/*) are kept, with their targets, as relative
++links inside the trees.
++"""
++
++TAR_TOOLCHAIN_TYPE = "@tar.bzl//tar/toolchain:type"
++
++# Paths under the archive prefix that are never needed.
++EXCLUDE = [
++    "emscripten/test",
++    "emscripten/docs",
++    "emscripten/media",
++]
++
++# Path components excluded wherever they occur.
++EXCLUDE_ANYWHERE = ["__pycache__"]
++
++def _emscripten_extract_impl(ctx):
++    bin_dir = ctx.actions.declare_directory("bin")
++    emscripten_dir = ctx.actions.declare_directory("emscripten")
++    lib_dir = ctx.actions.declare_directory("lib")
++    outputs = [bin_dir, emscripten_dir, lib_dir]
++    bsdtar = ctx.toolchains[TAR_TOOLCHAIN_TYPE]
++    prefix = ctx.attr.strip_prefix.strip("/")
++    components = len(prefix.split("/")) if prefix else 0
++    members = [
++        "{}/{}".format(prefix, path) if prefix else path
++        for path in ["bin/" + tool for tool in ctx.attr.bin_tools] + ["emscripten", "lib"]
++    ]
++    excludes = ["{}/{}".format(prefix, path) if prefix else path for path in EXCLUDE] + EXCLUDE_ANYWHERE
++
++    args = ctx.actions.args()
++    args.add("--extract")
++    args.add("--file", ctx.file.archive)
++    args.add("-C", bin_dir.dirname)
++    args.add("--strip-components", str(components))
++    args.add_all(excludes, before_each = "--exclude")
++    args.add_all(members)
++    ctx.actions.run(
++        executable = bsdtar.tarinfo.binary,
++        inputs = depset([ctx.file.archive], transitive = [bsdtar.default.files]),
++        outputs = outputs,
++        arguments = [args],
++        mnemonic = "EmscriptenExtract",
++        progress_message = "Extracting %s" % ctx.file.archive.short_path,
++        toolchain = TAR_TOOLCHAIN_TYPE,
++    )
++    return [
++        DefaultInfo(files = depset(outputs)),
++        OutputGroupInfo(
++            bin = depset([bin_dir]),
++            emscripten = depset([emscripten_dir]),
++            lib = depset([lib_dir]),
++        ),
++    ]
++
++emscripten_extract = rule(
++    implementation = _emscripten_extract_impl,
++    attrs = {
++        "archive": attr.label(
++            allow_single_file = True,
++            mandatory = True,
++            doc = "Downloaded Emscripten release archive (tar.xz or zip).",
++        ),
++        "bin_tools": attr.string_list(
++            mandatory = True,
++            doc = "Members of bin/ to extract (bsdtar patterns).",
++        ),
++        "strip_prefix": attr.string(
++            doc = "Directory prefix to strip from the archive members.",
++        ),
++    },
++    toolchains = [TAR_TOOLCHAIN_TYPE],
++)
+diff --git a/emscripten_toolchain/toolchain.bzl b/emscripten_toolchain/toolchain.bzl
+index 4ad2c6d..deeef62 100644
+--- a/emscripten_toolchain/toolchain.bzl
++++ b/emscripten_toolchain/toolchain.bzl
+@@ -72,7 +72,15 @@ def _impl(ctx):
+ 
+     cc_target_os = "emscripten"
+ 
++    # The binaries are tree artifacts extracted in a build action (bin/,
++    # emscripten/, lib/), so the install root is their parent directory. The
++    # attribute is not exec-transitioned: cc_toolchain's compiler_files etc.
++    # are in the target configuration and the path must match those inputs.
+     emscripten_dir = ctx.attr.emscripten_binaries.label.workspace_root
++    for f in ctx.files.emscripten_binaries:
++        if f.is_directory:
++            emscripten_dir = f.dirname
++            break
+ 
+     nodejs_path = ctx.file.nodejs_bin.path
+ 
+@@ -1152,7 +1160,7 @@ emscripten_cc_toolchain_config_rule = rule(
+     attrs = {
+         "cpu": attr.string(mandatory = True, values = ["asmjs", "wasm"]),
+         "em_config": attr.label(mandatory = True, allow_single_file = True),
+-        "emscripten_binaries": attr.label(mandatory = True, cfg = "exec"),
++        "emscripten_binaries": attr.label(mandatory = True),
+         "nodejs_bin": attr.label(mandatory = True, allow_single_file = True),
+         "python_bin": attr.label(mandatory = True, cfg = "exec"),
+         "script_extension": attr.string(mandatory = True, values = ["sh", "bat"]),
+diff --git a/remote_emscripten_repository.bzl b/remote_emscripten_repository.bzl
+index 6161550..9e032b5 100644
+--- a/remote_emscripten_repository.bzl
++++ b/remote_emscripten_repository.bzl
+@@ -1,5 +1,4 @@
+-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+-load(":emscripten_build_file.bzl", "EMSCRIPTEN_BUILD_FILE_CONTENT_TEMPLATE")
++load(":emscripten_build_file.bzl", "emscripten_build_file_content")
+ load(":revisions.bzl", "EMSCRIPTEN_TAGS")
+ load("@rules_cc//cc:defs.bzl", "cc_toolchain", "cc_toolchain_suite")
+ load("//emscripten_toolchain:toolchain.bzl", "emscripten_cc_toolchain_config_rule")
+@@ -12,21 +11,54 @@ _python_exec_files = rule(
+     attrs = {"src": attr.label(cfg = "exec")},
+ )
+ 
++def _emscripten_archive_impl(ctx):
++    archive = "wasm-binaries.{}".format(ctx.attr.type)
++    ctx.download(
++        url = ctx.attr.url,
++        output = archive,
++        sha256 = ctx.attr.sha256,
++    )
++    ctx.file("WORKSPACE", 'workspace(name = "{}")\n'.format(ctx.name))
++    ctx.file(
++        "BUILD.bazel",
++        emscripten_build_file_content(
++            archive = archive,
++            bin_extension = ctx.attr.bin_extension,
++            strip_prefix = ctx.attr.strip_prefix,
++        ),
++    )
++
++_emscripten_archive = repository_rule(
++    implementation = _emscripten_archive_impl,
++    attrs = {
++        "bin_extension": attr.string(),
++        "sha256": attr.string(mandatory = True),
++        "strip_prefix": attr.string(),
++        "type": attr.string(mandatory = True, values = ["tar.xz", "zip"]),
++        "url": attr.string(mandatory = True),
++    },
++    doc = "Downloads an Emscripten release archive; it is extracted by a build action.",
++)
++
+ def remote_emscripten_repository(
+     name,
+     bin_extension,
+     **kwargs,
+ ):
+-    """Imports an Emscripten from an http archive
++    """Imports an Emscripten from a release archive
++
++    The archive is only downloaded by the repository rule; extraction happens
++    in a build action (see emscripten_extract.bzl) so that it is cached and,
++    with remote execution, never has to happen on the machine running Bazel.
+ 
+     Args:
+       name: A unique name for this Emscripten repository.
+       bin_extension: Extension for the binaries in this Emscripten repository
+-      **kwargs: Args for http_archive. Refer to http_archive documentation for more info.
++      **kwargs: url, sha256, type and strip_prefix of the archive.
+     """
+-    http_archive(
++    _emscripten_archive(
+         name = name,
+-        build_file_content = EMSCRIPTEN_BUILD_FILE_CONTENT_TEMPLATE.format(bin_extension = bin_extension),
++        bin_extension = bin_extension,
+         **kwargs
+     )
+ 
