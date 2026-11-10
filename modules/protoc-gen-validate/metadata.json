@@ -11,7 +11,8 @@
         "github:bufbuild/protoc-gen-validate"
     ],
     "versions": [
-        "1.3.3.envoy"
+        "1.3.3.envoy",
+        "1.3.3.envoy.1"
     ],
     "yanked_versions": {}
 }
