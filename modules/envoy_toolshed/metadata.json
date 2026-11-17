@@ -36,7 +36,8 @@
         "0.5.19.envoy",
         "0.5.20.envoy",
         "0.5.21.envoy",
-        "0.5.22.envoy"
+        "0.5.22.envoy",
+        "0.5.23.envoy"
     ],
     "yanked_versions": {}
 }
