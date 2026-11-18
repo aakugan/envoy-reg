@@ -1,0 +1,5 @@
+{
+    "url": "https://github.com/envoyproxy/toolshed/releases/download/bazel-v0.5.25/toolshed-jq-v0.5.25.tar.gz",
+    "integrity": "sha256-OrwDLGhyXxSowQlWBfeXtVleAEQ9sndALzdtClPip6Q=",
+    "strip_prefix": "toolshed-jq-v0.5.25"
+}
