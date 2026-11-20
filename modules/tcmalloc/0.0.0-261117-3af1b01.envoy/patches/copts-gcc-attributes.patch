@@ -1,0 +1,10 @@
+--- a/tcmalloc/copts.bzl
++++ b/tcmalloc/copts.bzl
+@@ -35,6 +35,7 @@
+     "-Werror",
+     "-Wno-array-bounds",
+     "-Wno-attribute-alias",
++    "-Wno-attributes",
+     "-Wno-deprecated-declarations",
+     "-Wno-nullability-completeness",  # TODO: b/383569842 - remove or replace
+     "-Wno-return-type",

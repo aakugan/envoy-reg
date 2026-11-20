@@ -1,0 +1,11 @@
+--- a/tcmalloc/BUILD
++++ b/tcmalloc/BUILD
+@@ -31,7 +31,7 @@
+ )
+ load("//tcmalloc/internal:percpu.bzl", "create_percpu_tcmalloc_testsuite")
+ 
+-package(default_visibility = ["//visibility:private"])
++package(default_visibility = ["//visibility:public"])
+ 
+ licenses(["notice"])
+ 
