@@ -1,0 +1,5 @@
+{
+    "url": "https://github.com/envoyproxy/envoy/archive/refs/tags/v1.40.2.tar.gz",
+    "integrity": "sha256-UjjnyKzOom3njIkWmUX9R0eFVYUuThrgQ6t9E1df+oE=",
+    "strip_prefix": "envoy-1.40.2/api"
+}
