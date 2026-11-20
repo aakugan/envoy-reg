@@ -166,6 +166,21 @@ x = "bazel_dep(name = 'unreal', version = '0')"
             with self.subTest(text=text), self.assertRaises(ValueError):
                 register.rewrite_module(text, VERSION, {"x": VERSION})
 
+    def test_extension_proxy_method_calls_are_not_top_level(self):
+        # `go_deps.module(...)` is a module-extension proxy method, not a
+        # top-level module() declaration, so it is ignored, not rejected.
+        text = ('module(name = "x", version = "1.2.3")\n'
+                'bazel_dep(name = "y", version = "1")\n'
+                'go_deps = use_extension("@gazelle//:ext.bzl", "go_deps")\n'
+                'go_deps.module(\n'
+                '    path = "example.com/m",\n'
+                '    version = "v1.0.0",\n'
+                ')\n')
+        self.assertEqual([name for name, *_ in register.calls(text)],
+                         ["module", "bazel_dep"])
+        self.assertEqual(register.rewrite_module(text, VERSION, {}),
+                         text.replace('version = "1.2.3"', 'version = "1.2.3.envoy"'))
+
     def test_config_list_forms_and_default(self):
         for config in ('moduleRoots: [".", filter-cc, wasm-cc]\n',
                        'moduleRoots:\n- "."\n- filter-cc\n- wasm-cc\nother: true\n',

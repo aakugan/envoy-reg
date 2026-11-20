@@ -98,6 +98,11 @@ def calls(text):
     while index < len(tokens):
         token = tokens[index]
         if token.type == tokenize.NAME and token.string in CALLS:
+            # A `.`-prefixed occurrence is an attribute or module-extension
+            # proxy method (eg `go_deps.module(...)`), not a top-level call.
+            if index and tokens[index - 1].string == ".":
+                index += 1
+                continue
             if depth or token.start[1] or index + 1 == len(tokens) or tokens[index + 1].string != "(":
                 raise ValueError(f"Unsupported non-top-level {token.string} at line {token.start[0]}")
             end = index + 2
