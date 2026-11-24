@@ -20,7 +20,8 @@
         "0.2.9.envoy",
         "0.2.9.envoy.1",
         "0.2.10.envoy",
-        "0.2.11.envoy"
+        "0.2.11.envoy",
+        "0.2.12.envoy"
     ],
     "yanked_versions": {}
 }
